@@ -17,6 +17,7 @@ from dotenv import load_dotenv # Importing dotenv to get API key from .env file
 from langchain.prompts import ChatPromptTemplate # Import ChatPromptTemplate
 import os # Importing os module for operating system functionalities
 import shutil # Importing shutil module for high-level file operations
+from langchain.chains import RetrievalQA
 
 langchain.debug = True;
 
@@ -34,6 +35,12 @@ embedding_function = HuggingFaceEmbeddings(
 
 modelName="deepseek-r1:14b"
 model = ChatOllama(model=modelName)
+# Path to the directory to save Chroma database
+CHROMA_PATH = "chroma"
+# YOU MUST - Use same embedding function as before
+# Prepare the database
+db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
+chain = RetrievalQA.from_chain_type(model, retriever=db.as_retriever())
 
 # Directory to your pdf files:
 DATA_PATH = "./data/"
@@ -80,8 +87,6 @@ def split_text(documents: list[Document]):
 
   return chunks # Return the list of split text chunks
 
-# Path to the directory to save Chroma database
-CHROMA_PATH = "chroma"
 def save_to_chroma(chunks: list[Document]):
   """
   Save the given list of Document objects to a Chroma database.
@@ -137,6 +142,8 @@ Here is the question given by the user that you must answer:
 """
 
 def query_rag(query_text):
+  
+  return chain.invoke({"query": query_text})
   """
   Query a Retrieval-Augmented Generation (RAG) system using Chroma database and OpenAI.
   Args:
@@ -145,9 +152,6 @@ def query_rag(query_text):
     - formatted_response (str): Formatted response including the generated text and sources.
     - response_text (str): The generated response text.
   """
-  # YOU MUST - Use same embedding function as before
-  # Prepare the database
-  db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
   
   # Retrieving the context from the DB using similarity search
   results = db.similarity_search_with_relevance_scores("Give me the list of medium armors", k=3)
@@ -164,6 +168,7 @@ def query_rag(query_text):
   print("//////////////////////////////FULL QUERY//////////////////////////////")
   print(f"Prompt: {prompt}")
   
+
   # Generate response text based on the prompt
   response_text = model.invoke(prompt)
  
